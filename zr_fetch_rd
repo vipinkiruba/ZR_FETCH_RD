@@ -1,0 +1,74 @@
+*&---------------------------------------------------------------------*
+*& Report ZR_FETCH_RD
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZR_FETCH_RD.
+*CREATE A STRUCTURE OF STORING DATA
+TYPES: BEGIN OF t_struct,
+         vbeln TYPE ztab_vbak-vbeln,
+         erdat TYPE ztab_vbak-erdat,
+         ernam TYPE ztab_vbak-ernam,
+         audat TYPE ztab_vbak-audat,
+       END OF t_struct.
+*CREATE A INTERNAL TABLE AND WORK AREA FOR THAT
+DATA: it_t_struct TYPE TABLE OF t_struct,
+      wa_t_struct TYPE t_struct.
+
+DATA: filename TYPE string. "USED TO STORE THE PATH
+
+*DATA: it_bdcdata TYPE TABLE OF bdcdata,
+*      wa_bdcdata TYPE bdcdata.
+*DATA: it_msg TYPE TABLE OF bdcmsgcoll,
+*      wa_msg TYPE bdcmsgcoll.
+
+DATA: it_raw TYPE truxs_t_text_data. "USED TO STORE OUR RAW DATA
+
+PARAMETERS: p_file TYPE  rlgrap-filename. " rlgrap-filename IS USED TO STORE THE LOCATION
+
+*USED TO GET INTO THE SYSTEM TO FETCH THE DATA
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+      field_name    = 'P_FILE'
+    IMPORTING
+      file_name     = p_file. " AND STORE IT IN P_FILE
+  .
+  filename = p_file.
+
+*USED TO FETCH EVERY ROW AS RAW DATA INTO IT_RAW
+  START-OF-SELECTION.
+  CALL FUNCTION 'GUI_UPLOAD'
+    EXPORTING
+      filename = filename
+      filetype = 'ASC'
+    TABLES
+      data_tab = it_raw.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+*THEN WE NEED TO SEPERATE IT AS FIELDS AND STORE IT IN IT_T_STRUCT
+  CALL FUNCTION 'TEXT_CONVERT_TEX_TO_SAP'
+    EXPORTING
+      i_field_seperator    = ','
+      i_tab_raw_data       = it_raw
+    TABLES
+      i_tab_converted_data = it_t_struct
+    EXCEPTIONS
+      conversion_failed    = 1
+      OTHERS               = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+*LOOP IT AND PRINT IT
+  LOOP AT it_t_struct INTO wa_t_struct.
+    WRITE: /
+     wa_t_struct-vbeln,
+       wa_t_struct-erdat,
+  wa_t_struct-ernam,
+  wa_t_struct-audat.
+    endloop.
